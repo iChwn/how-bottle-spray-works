@@ -1,0 +1,6 @@
+# rendered videos are large and can always be rebuilt from rekaman/*.json
+renders/
+.hyperframes/
+node_modules/
+.check.json
+*.png

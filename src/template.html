@@ -1,0 +1,507 @@
+<meta charset="utf-8">
+<title>Animasi Pompa Atomizer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500&display=swap">
+<style>
+/* Layout: one tall product plate centred, a control rail of action buttons underneath; blueprint callouts float on the plate. */
+:root{
+  --bg:#eef1f4; --fg:#1b232c; --muted:#5d6b78; --line:#c9d2db;
+  --plate:#ffffff; --ink:#2b5d8a; --accent:#1f7ae0;
+  --display:"Space Grotesk",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11161c;--fg:#e4eaf0;--muted:#93a2b0;--line:#2a343e;--plate:#f6f8fa;--ink:#2b5d8a;--accent:#4c9cf5;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11161c;--fg:#e4eaf0;--muted:#93a2b0;--line:#2a343e;--plate:#f6f8fa;--ink:#2b5d8a;--accent:#4c9cf5;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 28px}
+.wrap{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+h1{font-family:var(--display);font-size:1.45rem;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.phase{font-family:var(--mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.plate{background:var(--plate);border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative;width:100%;max-width:100%}
+.stage{position:absolute;left:0;top:0;transform-origin:0 0}
+.stage img{position:absolute;display:block;max-width:none;will-change:transform}
+.stage canvas{position:absolute;left:0;top:0}
+#fx{z-index:20;pointer-events:none}
+#liq{z-index:15;pointer-events:none;mix-blend-mode:multiply}
+#cut{z-index:16;pointer-events:none}
+.seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg button{border:0;border-radius:0}
+.explain{margin:0;font-size:.95rem;line-height:1.55;max-width:65ch;min-height:3.1em}
+.explain b{font-family:var(--mono);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-right:6px}
+.lbl{position:absolute;font-family:var(--mono);font-size:19px;color:var(--ink);white-space:nowrap;display:flex;align-items:center;gap:10px;z-index:30;transform:translateY(-50%)}
+.lbl i{display:block;height:1px;background:var(--ink);opacity:.6}
+.lbl b{font-weight:500;opacity:.55;margin-right:2px}
+.rail{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.grp{display:flex;gap:6px;flex-wrap:wrap}
+.sep{width:1px;align-self:stretch;background:var(--line)}
+button{font-family:var(--body);font-size:.88rem;font-weight:500;padding:8px 14px;border-radius:4px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.4;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+kbd{font-family:var(--mono);font-size:.72rem;opacity:.6;margin-left:6px}
+button.rec-btn{display:flex;align-items:center;gap:8px}
+button.rec-btn .dot{width:10px;height:10px;border-radius:50%;background:#d23b3b}
+button.rec-btn[aria-pressed="true"]{background:#d23b3b;border-color:#d23b3b;color:#fff}
+button.rec-btn[aria-pressed="true"] .dot{background:#fff;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:.2}}
+@media (prefers-reduced-motion: reduce){button.rec-btn .dot{animation:none!important}}
+.recbox{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:6px;padding:12px}
+[hidden]{display:none!important}
+.busy{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(10,14,18,.6);color:#fff;font-family:var(--mono);text-align:center;padding:16px}
+.spin{width:52px;height:52px;border:5px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin{animation:none}}
+.busy-pct{font-family:var(--display);font-size:2.4rem;font-weight:700;font-variant-numeric:tabular-nums}
+.busy-bar{width:min(320px,70%);height:8px;background:rgba(255,255,255,.25);border-radius:4px;overflow:hidden}
+.busy-bar i{display:block;height:100%;width:0;background:#fff;transition:width .4s ease}
+.export{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.export label{display:flex;align-items:center;gap:6px;font-size:.88rem}
+#exportMsg{font-family:var(--mono);font-size:.8rem;color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.rechead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rechead span{font-family:var(--mono);font-size:.8rem;color:var(--muted);flex:1}
+.recbox textarea{width:100%;box-sizing:border-box;font-family:var(--mono);font-size:.75rem;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:4px;padding:8px;resize:vertical}
+p.note{margin:0;color:var(--muted);font-size:.85rem;line-height:1.5;max-width:65ch}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Pompa atomizer — urai, rakit, semprot</h1>
+    <span class="phase" id="phase">Terurai</span>
+  </header>
+  <div class="plate" id="plate">
+    <div class="stage" id="stage">
+      <canvas id="liq"></canvas>
+      <canvas id="cut"></canvas>
+      <canvas id="fx"></canvas>
+    </div>
+    <div class="busy" id="busy" hidden role="status" aria-live="polite">
+      <div class="spin"></div>
+      <div class="busy-pct" id="busyPct">0%</div>
+      <div class="busy-bar"><i id="busyBar"></i></div>
+      <div id="busyStage">Menyiapkan</div>
+    </div>
+  </div>
+  <div class="rail">
+    <div class="grp">
+      <button id="bAsm">Rakit<kbd>A</kbd></button>
+      <button id="bExp">Urai<kbd>E</kbd></button>
+    </div>
+    <span class="sep"></span>
+    <div class="grp">
+      <button id="bPress">Tekan<kbd>T</kbd></button>
+      <button id="bRel">Lepas<kbd>L</kbd></button>
+      <button class="primary" id="bSpray">Semprot 1x<kbd>Spasi</kbd></button>
+    </div>
+    <span class="sep"></span>
+    <button id="bDemo" aria-pressed="false">Demo otomatis</button>
+    <span class="sep"></span>
+    <div class="seg" role="group" aria-label="Tampilan">
+      <button id="vPhoto" aria-pressed="true">Foto</button>
+      <button id="vCut" aria-pressed="false">Cutaway<kbd>C</kbd></button>
+    </div>
+    <span class="sep"></span>
+    <button id="bRec" class="rec-btn" aria-pressed="false"><span class="dot"></span><span id="recLbl">Rekam</span></button>
+  </div>
+  <div class="recbox" id="recBox" hidden>
+    <div class="rechead"><b>Catatan rekaman</b><span id="recInfo"></span><button id="bCopy">Salin</button></div>
+    <textarea id="recOut" readonly rows="4" aria-label="Catatan rekaman"></textarea>
+    <div class="export" id="exportRow" hidden>
+      <label><input type="checkbox" id="optLabel" checked> Dengan label</label>
+      <button class="primary" id="bExport">Ekspor video</button>
+      <span id="exportMsg"></span>
+    </div>
+    <p class="note" id="recNote">Salin teks ini lalu kirim ke Claude. Klikmu diputar ulang persis sama dan dirender jadi video overlay dengan latar transparan.</p>
+  </div>
+  <p class="explain" id="explain"></p>
+  <p class="note">Tiap komponen dipotong langsung dari foto exploded view. Tekan pertama hanya memompa cairan naik ke pipa (priming); semprotan keluar mulai tekan berikutnya. Saat nozzle ditekan, piston menekan pegas dan cairan di ruang pompa keluar sebagai kabut. Saat dilepas, pegas mendorong piston naik, bola katup bawah terangkat, dan cairan terhisap lewat pipa.</p>
+</div>
+
+<script>
+const PARTS = __PARTS__;
+const VB = {x:40, y:0, w:1000, h:1400};
+const META = [
+  {dy:449, name:"Nozzle / aktuator", press:1},
+  {dy:368, name:"O-ring", press:1},
+  {dy:362, name:"Bola katup atas", press:1},
+  {dy:332, name:"Tutup berulir", press:0},
+  {dy:262, name:"Piston", press:1},
+  {dy:152, name:"Pegas", press:0, spring:1},
+  {dy:0,   name:"Silinder pompa", press:0},
+  {dy:-46, name:"Bola katup bawah", press:0, ball:1},
+  {dy:-89, name:"Dudukan katup", press:0},
+  {dy:-135,name:"Pipa hisap", press:0},
+];
+const STROKE = 24, ORIFICE = {x:503, y:48}, LBLX = 680;
+const stage = document.getElementById('stage'), plate = document.getElementById('plate');
+stage.style.width = VB.w+'px'; stage.style.height = VB.h+'px';
+const imgs = PARTS.map((p,i)=>{
+  const im = new Image(); im.src = p.src; im.alt = META[i].name;
+  im.style.left = (p.x-VB.x)+'px'; im.style.top = (p.y-VB.y)+'px'; im.style.width=p.w+'px'; im.style.height=p.h+'px';
+  im.style.zIndex = [9,8,7,10,5,4,6,3,7,2][i];
+  if (META[i].spring) im.style.transformOrigin = '50% 100%';
+  stage.appendChild(im); return im;
+});
+const labels = PARTS.map((p,i)=>{
+  const d = document.createElement('div'); d.className='lbl';
+  d.innerHTML = '<i></i><span><b>'+String(i+1).padStart(2,'0')+'</b> '+META[i].name+'</span>';
+  stage.appendChild(d); return d;
+});
+const liq = document.getElementById('liq'), fx = document.getElementById('fx');
+const dpr = Math.min(2, window.devicePixelRatio||1);
+[liq,fx].forEach(c=>{c.width=VB.w*dpr;c.height=VB.h*dpr;c.style.width=VB.w+'px';c.style.height=VB.h+'px';});
+const lc = liq.getContext('2d'), fc = fx.getContext('2d');
+const CH = document.createElement('canvas'); CH.width=VB.w*dpr; CH.height=VB.h*dpr;
+lc.scale(dpr,dpr); fc.scale(dpr,dpr);
+
+function fit(){
+  const w = plate.clientWidth;
+  const maxH = window.__HF_REPLAY ? window.innerHeight : Math.max(420, window.innerHeight - 190);
+  let s = w / VB.w; if (VB.h*s > maxH) s = maxH / VB.h;
+  plate.style.height = (VB.h*s)+'px';
+  CAM.s=s; CAM.w=w; applyCam();
+}
+const CAM={s:1,w:1000,z:0};
+function applyCam(){
+  const {s,w}=CAM, k=CAM.z*CAM.z*(3-2*CAM.z), z=1+0.55*k, H=VB.h*s;
+  const F={x:560-VB.x, y:720};
+  const sx0=(w-VB.w*s)/2+F.x*s, sy0=F.y*s;
+  const sx=sx0+(w*0.38-sx0)*k, sy=sy0+(H*0.42-sy0)*k;
+  stage.style.transform = `translate(${sx-F.x*s*z}px,${sy-F.y*s*z}px) scale(${s*z})`;
+}
+new ResizeObserver(fit).observe(plate); window.addEventListener('resize', fit); fit();
+
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const easeOut=t=>1-Math.pow(1-t,3);
+
+// ---------- state ----------
+const S = {
+  asm:0, asmTarget:0,       // assembly progress 0 (exploded) .. 1 (assembled), linear
+  pr:0, prTarget:0,         // press travel 0..1, linear
+  primed:0,                 // grows during each release; >=1 means liquid reached the chamber
+  lift:0,                   // lower check ball lift 0..1
+  t:0,
+};
+const STAG = 0.09, PART_TIME = 1.4, ASM_TOTAL = 6*STAG + PART_TIME;
+const DOWN_TIME = 0.3, UP_TIME = 0.55;
+function assembleFor(i){
+  // staggered: centre parts first when assembling, outer parts last
+  const st = Math.abs(i-6)*STAG;
+  const local = (S.asm*ASM_TOTAL - st)/PART_TIME;
+  return ease(clamp(local));
+}
+const assembled = ()=>S.asm>=1;
+
+// ---------- action queue ----------
+let gen = 0;
+const waitUntil = (cond, g)=>new Promise(res=>{
+  (function chk(){ if (g!==gen) return res(false); if (cond()) return res(true); requestAnimationFrame(chk); })();
+});
+const sleep = (s,g)=>{ const end=S.t+s; return waitUntil(()=>S.t>=end, g); };
+async function doAssemble(g){ if (S.prTarget){ S.prTarget=0; await waitUntil(()=>S.pr<=0,g); } S.asmTarget=1; return waitUntil(()=>S.asm>=1,g); }
+async function doExplode(g){ if (S.prTarget||S.pr>0){ S.prTarget=0; await waitUntil(()=>S.pr<=0,g); } S.asmTarget=0; return waitUntil(()=>S.asm<=0,g); }
+async function doPress(g){ if(!assembled()){ if(!await doAssemble(g)) return false; await sleep(.2,g);} S.prTarget=1; return waitUntil(()=>S.pr>=1,g); }
+async function doRelease(g){ S.prTarget=0; return waitUntil(()=>S.pr<=0,g); }
+async function doStroke(g){ if(!await doPress(g)) return false; await sleep(.15,g); return doRelease(g); }
+async function doSpray(g){
+  if(!assembled()){ if(!await doAssemble(g)) return; await sleep(.25,g); }
+  if (S.pr>0){ await doRelease(g); await sleep(.1,g); }
+  if (S.primed<0.95){ await doStroke(g); await sleep(.2,g); }   // priming stroke first
+  await doStroke(g);
+}
+async function demo(g){
+  while (g===gen){
+    if(!await doAssemble(g)) return; await sleep(.6,g);
+    for (let k=0;k<3;k++){ if(!await doStroke(g)) return; await sleep(.45,g); }
+    await sleep(.6,g);
+    if(!await doExplode(g)) return; await sleep(1.2,g);
+  }
+}
+let demoOn=false;
+function run(fn){ gen++; setDemo(false); fn(gen); }
+function setDemo(on){ demoOn=on; bDemo.setAttribute('aria-pressed', String(on)); }
+const $=id=>document.getElementById(id);
+const bAsm=$('bAsm'), bExp=$('bExp'), bPress=$('bPress'), bRel=$('bRel'), bSpray=$('bSpray'), bDemo=$('bDemo');
+bAsm.onclick=()=>run(doAssemble);
+bExp.onclick=()=>run(doExplode);
+bPress.onclick=()=>run(doPress);
+bRel.onclick=()=>run(doRelease);
+bSpray.onclick=()=>run(doSpray);
+bDemo.onclick=()=>{ const on=!demoOn; gen++; setDemo(on); if(on) demo(gen); };
+addEventListener('keydown',e=>{
+  if (e.target.closest && e.target.closest('button') && (e.key===' '||e.key==='Enter')) return;
+  const k=e.key.toLowerCase();
+  if (k==='a') bAsm.click(); else if (k==='e') bExp.click();
+  else if (k==='t') bPress.click(); else if (k==='l') bRel.click();
+  else if (k==='c') setMode(mode==='cut'?'photo':'cut');
+  else if (k===' '){ e.preventDefault(); bSpray.click(); }
+});
+
+// ---------- liquid ----------
+const BOTTLE = {x0:440,x1:676,neck0:505,neck1:610,top:640,shoulder:740,bottom:1262,level:1150};
+function drawLiquid(a){
+  lc.clearRect(0,0,VB.w,VB.h);
+  if (a<=0.01) return;
+  lc.save(); lc.translate(-VB.x,-VB.y); lc.globalAlpha = a;
+  const B=BOTTLE;
+  lc.strokeStyle= window.__HF_REPLAY ? 'rgba(255,255,255,.45)' : 'rgba(43,93,138,.35)'; lc.setLineDash([7,6]); lc.lineWidth=2;
+  lc.beginPath();
+  lc.moveTo(B.neck0,B.top); lc.lineTo(B.neck0,B.top+40);
+  lc.quadraticCurveTo(B.neck0,B.shoulder, B.x0,B.shoulder+40);
+  lc.lineTo(B.x0,B.bottom-16); lc.quadraticCurveTo(B.x0,B.bottom,B.x0+16,B.bottom);
+  lc.lineTo(B.x1-16,B.bottom); lc.quadraticCurveTo(B.x1,B.bottom,B.x1,B.bottom-16);
+  lc.lineTo(B.x1,B.shoulder+40); lc.quadraticCurveTo(B.neck1,B.shoulder,B.neck1,B.top+40); lc.lineTo(B.neck1,B.top);
+  lc.stroke(); lc.setLineDash([]);
+  const n = S.primed;
+  const lvl = B.level + Math.min(n,6)*3;
+  const wob = Math.sin(S.t*3.1)*2;
+  lc.fillStyle='rgba(64,150,230,.20)';
+  lc.beginPath(); lc.moveTo(B.x0+2,lvl+wob);
+  lc.bezierCurveTo(B.x0+80,lvl-3-wob,B.x1-80,lvl+3+wob,B.x1-2,lvl-wob);
+  lc.lineTo(B.x1-2,B.bottom-16); lc.quadraticCurveTo(B.x1-2,B.bottom-2,B.x1-16,B.bottom-2);
+  lc.lineTo(B.x0+16,B.bottom-2); lc.quadraticCurveTo(B.x0+2,B.bottom-2,B.x0+2,B.bottom-16); lc.closePath(); lc.fill();
+  const tubeTop=870, tubeBot=1235;
+  const yTube = lvl - (lvl-tubeTop)*clamp(n/0.7);
+  lc.fillStyle='rgba(64,150,230,.55)';
+  lc.fillRect(552, yTube, 11, tubeBot-yTube);
+  const chamberFill = clamp((n-0.6)/1.4);
+  if (chamberFill>0){
+    lc.fillRect(549, 826, 17, 46);
+    // chamber liquid takes the cylinder's own silhouette (from the photo layer), inset to sit inside the wall
+    const cTop=668, cBot=832, cy = cBot-(cBot-cTop)*chamberFill;
+    const B6=PARTS[6], k=CH.getContext('2d');
+    k.setTransform(dpr,0,0,dpr,0,0); k.clearRect(0,0,VB.w,VB.h); k.translate(-VB.x,-VB.y);
+    k.globalCompositeOperation='source-over'; k.fillStyle='rgba(64,150,230,.34)';
+    k.fillRect(B6.x, cy, B6.w, cBot-cy);
+    k.globalCompositeOperation='destination-in';
+    k.drawImage(imgs[6], B6.x+8, B6.y+6, B6.w-16, B6.h-10);
+    lc.drawImage(CH, VB.x, VB.y, VB.w, VB.h);
+  }
+  lc.restore();
+}
+
+// ---------- mist ----------
+let seed=12345;
+function rand(){ seed|=0; seed=seed+0x6D2B79F5|0; let r=Math.imul(seed^seed>>>15,1|seed); r=r+Math.imul(r^r>>>7,61|r)^r; return ((r^r>>>14)>>>0)/4294967296; }
+let parts=[];
+function emit(dt,x,y,rate){
+  const n = Math.floor(rate*dt + rand());
+  for(let k=0;k<n;k++){
+    const ang = Math.PI + (rand()-.5)*0.42;
+    const sp = 700+rand()*700;
+    parts.push({x:x+(rand()-.5)*4,y:y+(rand()-.5)*4,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,r:1.2+rand()*2.2,life:0,max:.7+rand()*.7});
+  }
+}
+function stepParticles(dt){
+  fc.clearRect(0,0,VB.w,VB.h);
+  fc.save(); fc.translate(-VB.x,-VB.y);
+  const keep=[];
+  for(const p of parts){
+    p.life+=dt; if(p.life>p.max) continue;
+    const drag=Math.exp(-3.2*dt); p.vx*=drag; p.vy=p.vy*drag+28*dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
+    p.r+=dt*(10+Math.abs(p.vx)*0.006);
+    const k=p.life/p.max, al=(1-k)*(k<.08?k/.08:1)*0.32;
+    fc.fillStyle=`rgba(120,165,205,${al})`;
+    fc.beginPath(); fc.arc(p.x,p.y,p.r,0,6.283); fc.fill();
+    keep.push(p);
+  }
+  parts=keep; fc.restore();
+}
+
+// ---------- cutaway: same photo layers, outer housing made see-through ----------
+const cutCv = document.getElementById('cut');
+cutCv.width=VB.w*dpr; cutCv.height=VB.h*dpr; cutCv.style.width=VB.w+'px'; cutCv.style.height=VB.h+'px';
+const cc = cutCv.getContext('2d'); cc.scale(dpr,dpr);
+const INK= window.__HF_REPLAY ? '#ffffff' : '#2b5d8a', CHIP_X = window.__HF_REPLAY ? 670 : 700;
+const SHELL = new Set([0,3,6,8,9]);           // nozzle, cap, cylinder, valve seat, dip tube
+const Z = [9,8,7,10,5,4,6,3,7,2];
+function chip(x,y,title,status,on){
+  cc.font='500 19px "IBM Plex Mono", ui-monospace, monospace'; cc.textBaseline='middle'; cc.fillStyle=INK; cc.fillText(title,x,y-13);
+  if(!status) return;
+  cc.font='500 15px "IBM Plex Mono", ui-monospace, monospace';
+  const w=cc.measureText(status).width+16;
+  cc.fillStyle= on===1 ? '#1d8a4e' : on===2 ? '#c46a12' : '#6b7884';
+  cc.beginPath(); cc.roundRect ? cc.roundRect(x,y+2,w,22,4) : cc.rect(x,y+2,w,22); cc.fill();
+  cc.fillStyle='#fff'; cc.fillText(status,x+8,y+14);
+}
+function leader(x0,y0,x1,y1){ cc.strokeStyle= window.__HF_REPLAY ? 'rgba(255,255,255,.7)' : 'rgba(43,93,138,.55)'; cc.lineWidth=1.2; cc.beginPath(); cc.moveTo(x0,y0); cc.lineTo(x1,y1); cc.stroke();
+  cc.fillStyle=INK; cc.beginPath(); cc.arc(x0,y0,3,0,6.283); cc.fill(); }
+// centre of a part in stage px at its assembled position
+function at(i, extraY=0){ const p=PARTS[i]; return [p.x+p.w-VB.x, p.y+p.h/2+META[i].dy+extraY-VB.y]; }
+function drawCut(alpha, prE, dPr, upOpen){
+  cc.clearRect(0,0,VB.w,VB.h);
+  if (alpha<=0.01) return;
+  cc.save(); cc.globalAlpha=alpha;
+  const s=STROKE*prE, ready=S.primed>=0.95, press=dPr>0&&ready, suck=dPr<0, X=CHIP_X;
+  const R=[560,655,750,845,940];   // fixed rows so callouts never stack on each other
+  let [x,y]=at(2, s-9*upOpen); leader(x,y,X-10,R[0]); chip(X,R[0],'Bola katup atas', upOpen>0.5?'TERBUKA':'TERTUTUP', upOpen>0.5?1:0);
+  [x,y]=at(4, s); leader(x,y-40,X-10,R[1]); chip(X,R[1],'Piston', dPr>0?'TURUN':dPr<0?'NAIK':'', 2);
+  [x,y]=at(5); leader(x,y+20,X-10,R[2]); chip(X,R[2],'Pegas', dPr>0?'DITEKAN':dPr<0?'MENDORONG NAIK':prE>0.98?'TERTEKAN':'', 2);
+  [x,y]=at(6); leader(x-14,y+30,X-10,R[3]); chip(X,R[3],'Ruang pompa', press?'TEKANAN TINGGI':suck?'TEKANAN RENDAH':'', 2);
+  [x,y]=at(7, -7*S.lift); leader(x,y,X-10,R[4]); chip(X,R[4],'Bola katup bawah', S.lift>0.5?'TERBUKA':'TERTUTUP', S.lift>0.5?1:0);
+  cc.restore();
+}
+
+// ---------- step + render ----------
+let lastPhase='', mode='photo', upOpen=0;
+const vPhoto=$('vPhoto'), vCut=$('vCut');
+function setMode(m){ mode=m; vPhoto.setAttribute('aria-pressed',String(m==='photo')); vCut.setAttribute('aria-pressed',String(m==='cut'));
+  if (m==='cut' && S.asmTarget===0 && !demoOn) run(doAssemble); }
+vPhoto.onclick=()=>setMode('photo'); vCut.onclick=()=>setMode('cut');
+const EXPLAIN = {
+  'Terurai':'Semua komponen terlepas. Tekan Rakit untuk menyusunnya.',
+  'Merakit':'Komponen masuk ke posisinya: pegas dan piston di dalam silinder, bola katup bawah di dasar, tutup dan nozzle di atas.',
+  'Mengurai':'Komponen dilepas satu per satu.',
+  'Tekan — priming':'Ruang pompa masih berisi udara. Piston turun membuang udara, jadi belum ada cairan yang keluar.',
+  'Tekan — semprot':'Piston turun dan menekan cairan di ruang pompa. Tekanan menahan bola katup bawah tetap menutup dan mendorong bola katup atas terbuka, jadi cairan naik lewat batang piston yang berlubang lalu keluar dari nozzle sebagai kabut.',
+  'Tertekan':'Piston di posisi paling bawah dan pegas tertekan penuh. Aliran berhenti, kedua katup menutup.',
+  'Lepas — hisap':'Pegas mendorong piston naik. Tekanan di ruang pompa turun, jadi bola katup atas menutup dan bola katup bawah terangkat. Cairan terhisap dari botol lewat pipa hisap.',
+  'Terakit — belum priming':'Pompa terpasang tapi ruangnya belum berisi cairan. Tekan pertama hanya memompa cairan naik.',
+  'Terakit — siap semprot':'Ruang pompa sudah penuh cairan. Kedua bola katup menutup dan pegas menahan piston di atas.',
+};
+function update(dt){
+  S.t += dt;
+  const aRate = dt/ASM_TOTAL;
+  const aEnd = S.asmTarget ? 1 : 0;
+  if (S.asm < aEnd) S.asm = Math.min(aEnd, S.asm + aRate);
+  else if (S.asm > aEnd) S.asm = Math.max(aEnd, S.asm - aRate);
+  if (S.asmTarget===0 && S.asm<=0){ S.primed=0; }
+  const prevPr=S.pr;
+  if (S.pr < S.prTarget) S.pr = Math.min(S.prTarget, S.pr + dt/DOWN_TIME);
+  else if (S.pr > S.prTarget) S.pr = Math.max(S.prTarget, S.pr - dt/UP_TIME);
+  const dPr = S.pr - prevPr;
+  if (dPr<0){ S.primed += -dPr; }
+  S.lift += ((dPr<0?1:0) - S.lift)*clamp(dt*14);
+  return dPr;
+}
+function render(dt){
+  const dPr = update(dt);
+  const prE = S.pr<S.prTarget || dPr>0 ? easeOut(S.pr) : ease(S.pr);
+  let aMin=1;
+  PARTS.forEach((p,i)=>{
+    const m=META[i], a=assembleFor(i); aMin=Math.min(aMin,a);
+    let y = m.dy*a;
+    if (m.press) y += STROKE*prE*a;
+    let tr = `translateY(${y}px)`;
+    if (m.spring){ const s = 0.9*a+(1-a) - (STROKE*prE*a)/p.h; tr = `translateY(${y}px) scaleY(${s})`; }
+    if (m.ball && a>0.99) tr = `translateY(${y-7*S.lift}px)`;
+    if (i===2 && a>0.99) tr = `translateY(${y-9*upOpen}px)`;
+    imgs[i].style.transform = tr;
+    const cy = p.y + p.h/2 + m.dy*a - VB.y;
+    const L = labels[i];
+    L.style.top = cy+'px';
+    const right = p.x+p.w - VB.x + 14;
+    L.style.left = right+'px';
+    L.firstChild.style.width = Math.max(10,(LBLX-VB.x)-right)+'px';
+    L.style.opacity = 1-clamp(a*1.6);
+  });
+  upOpen += (((dPr>0 && S.primed>=0.95)?1:0) - upOpen)*clamp(dt*16);
+  const cutA = mode==='cut' ? aMin : 0;
+  imgs.forEach((im,i)=>{ const shell=SHELL.has(i); im.style.opacity = String(shell ? 1-cutA*0.7 : 1); im.style.zIndex = String(cutA>0.01 && !shell ? 11+i : Z[i]); });
+  drawLiquid(aMin);
+  drawCut(cutA, prE, dPr, upOpen);
+  const zt = mode==='cut' && S.asmTarget===1 ? 1 : 0;
+  if (Math.abs(CAM.z-zt)>0.001){ CAM.z += Math.sign(zt-CAM.z)*Math.min(Math.abs(zt-CAM.z), dt/0.9); applyCam(); }
+  const spraying = aMin>0.99 && dPr>0 && S.primed>=0.95;
+  if (spraying){
+    emit(dt, ORIFICE.x-4, ORIFICE.y + META[0].dy + STROKE*prE, 1500);
+  }
+  stepParticles(dt);
+  // phase + buttons
+  let ph;
+  if (S.asm>0 && aMin<0.99 && S.asmTarget) ph='Merakit';
+  else if (S.asm>0 && !S.asmTarget) ph='Mengurai';
+  else if (S.asm<=0) ph='Terurai';
+  else if (dPr>0) ph = S.primed>=0.95 ? 'Tekan — semprot' : 'Tekan — priming';
+  else if (dPr<0) ph='Lepas — hisap';
+  else if (S.pr>=1) ph='Tertekan';
+  else ph = S.primed>=0.95 ? 'Terakit — siap semprot' : 'Terakit — belum priming';
+  if (ph!==lastPhase){ $('phase').textContent=ph; $('explain').innerHTML='<b>'+ph+'</b>'+(EXPLAIN[ph]||''); lastPhase=ph; }
+  bAsm.disabled = S.asmTarget===1 && !demoOn;
+  bExp.disabled = S.asmTarget===0 && S.asm<=0 && !demoOn;
+  bRel.disabled = S.prTarget===0 && S.pr<=0 && !demoOn;
+  bPress.disabled = S.prTarget===1 && !demoOn;
+}
+
+// ---------- recording ----------
+const snap = ()=>({asm:+S.asm.toFixed(4), asmTarget:S.asmTarget, pr:+S.pr.toFixed(4), prTarget:S.prTarget, primed:+S.primed.toFixed(4), lift:+S.lift.toFixed(4), upOpen:+upOpen.toFixed(4), mode, camz:+CAM.z.toFixed(4)});
+let rec=null;
+const bRec=$('bRec'), recLbl=$('recLbl');
+function recTick(dt){
+  if(!rec) return;
+  rec.t+=dt;
+  const now={asm:S.asmTarget, pr:S.prTarget, mode};
+  for(const k in now) if(now[k]!==rec.last[k]){ rec.ev.push([+rec.t.toFixed(3),k,now[k]]); rec.last[k]=now[k]; }
+  recLbl.textContent='Stop '+rec.t.toFixed(1)+' s';
+}
+bRec.onclick=()=>{
+  if(!rec){
+    rec={t:0, start:snap(), ev:[], last:{asm:S.asmTarget, pr:S.prTarget, mode}};
+    bRec.setAttribute('aria-pressed','true'); $('recBox').hidden=true;
+  } else {
+    const out={v:1, dur:+rec.t.toFixed(2), start:rec.start, ev:rec.ev};
+    $('recOut').value=JSON.stringify(out);
+    $('recInfo').textContent=out.dur.toFixed(1)+' detik · '+out.ev.length+' aksi';
+    $('recBox').hidden=false; rec=null;
+    bRec.setAttribute('aria-pressed','false'); recLbl.textContent='Rekam';
+  }
+};
+$('bCopy').onclick=async()=>{
+  const ta=$('recOut');
+  try{ await navigator.clipboard.writeText(ta.value); $('bCopy').textContent='Tersalin'; }
+  catch(e){ ta.focus(); ta.select(); $('bCopy').textContent='Tekan Ctrl+C'; }
+  setTimeout(()=>{$('bCopy').textContent='Salin';},1800);
+};
+
+// ---------- local export (only when served by server.py on this computer) ----------
+if (window.__LOCAL_EXPORT){
+  $('exportRow').hidden=false;
+  $('recNote').textContent='Klik Ekspor video untuk merender rekaman ini jadi .mov transparan. Hasilnya tersimpan di folder atomizer-video/renders.';
+  const bX=$('bExport'), msg=$('exportMsg');
+  const busy=$('busy'), busyPct=$('busyPct'), busyBar=$('busyBar'), busyStage=$('busyStage');
+  const show=(pct,stage)=>{ busyPct.textContent=pct+'%'; busyBar.style.width=pct+'%'; busyStage.textContent=stage; };
+  bX.onclick=async()=>{
+    let recData; try{ recData=JSON.parse($('recOut').value); }catch(e){ msg.textContent='Rekam dulu, lalu klik Stop.'; return; }
+    bX.disabled=true; bRec.disabled=true; busy.hidden=false; show(0,'Menyiapkan'); msg.textContent='';
+    const t0=Date.now();
+    const poll=setInterval(async()=>{
+      try{ const p=await (await fetch('/progress')).json();
+        if(p.busy) show(p.pct, p.stage+' · '+Math.round((Date.now()-t0)/1000)+' s'); }catch(e){}
+    },400);
+    try{
+      const r=await fetch('/export',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rec:recData,label:$('optLabel').checked})});
+      const j=await r.json();
+      if (j.ok){ show(100,'Selesai'); msg.textContent='Tersimpan: '+j.file; }
+      else msg.textContent='Gagal: '+(j.error||'render error');
+    }catch(e){ msg.textContent='Server lokal tidak menjawab. Pastikan jendela Buka Atomizer masih terbuka.'; }
+    clearInterval(poll);
+    setTimeout(()=>{ busy.hidden=true; }, 900);
+    bX.disabled=false; bRec.disabled=false;
+  };
+}
+
+// ---------- replay (video render): state is rebuilt from the recording at fixed steps ----------
+if (window.__HF_REPLAY){
+  const REC=window.__HF_REC, DT=1/60;
+  let simT=0, ei=0;
+  const reset=()=>{ const s=REC.start;
+    Object.assign(S,{asm:s.asm, asmTarget:s.asmTarget, pr:s.pr, prTarget:s.prTarget, primed:s.primed, lift:s.lift, t:0});
+    upOpen=s.upOpen; mode=s.mode; CAM.z=s.camz; applyCam(); parts=[]; seed=12345; simT=0; ei=0; };
+  window.__atomizerSeek=(T)=>{
+    if (T < simT-1e-6 || simT===0){ reset(); render(0); }
+    while (simT+DT <= T+1e-6){
+      while (ei<REC.ev.length && REC.ev[ei][0] <= simT+1e-6){ const [,k,v]=REC.ev[ei++]; if(k==='asm') S.asmTarget=v; else if(k==='pr') S.prTarget=v; else mode=v; }
+      render(DT); simT+=DT;
+    }
+  };
+} else {
+  let prev=performance.now();
+  const loop=(now)=>{
+    const dt=Math.min(0.05,(now-prev)/1000); prev=now;
+    render(dt); recTick(dt);
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}
+</script>
