@@ -21,7 +21,8 @@ def page():
     head = ('<!doctype html>\n<meta charset="utf-8">\n'
             '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
             '<script>window.__LOCAL_EXPORT = true;</script>\n')
-    return (head + tpl.replace("__PARTS__", parts)).encode("utf-8")
+    sfx = (ROOT / "src" / "sfx.json").read_text(encoding="utf-8")
+    return (head + tpl.replace("__PARTS__", parts).replace("__SFX__", sfx)).encode("utf-8")
 
 
 def export(rec, label):

@@ -2,6 +2,8 @@
 
 Animasi pompa atomizer (spray botol) yang dibuat dari foto exploded view. Setiap komponen dipotong langsung dari foto, lalu dianimasikan: dirakit, ditekan, menyemprot, dan diurai lagi. Ada juga mode cutaway yang membuat rumah pompa tembus pandang, sehingga bola katup, piston, dan pegas di dalamnya kelihatan bekerja.
 
+Setiap aksi punya efek suara dari rekaman asli (klik nozzle, desis semprotan, komponen terpasang). Suara ini ikut masuk ke video yang diekspor, tepat di waktu yang sama dengan gerakannya. Tombol **Suara: on/off** di halaman mematikan suara di browser saja.
+
 Gerakan yang kamu klik di halaman bisa direkam lalu diekspor jadi video overlay transparan (ProRes 4444 `.mov`, 1080×1920) dengan [HyperFrames](https://hyperframes.heygen.com).
 
 ## Kebutuhan
@@ -33,7 +35,7 @@ Di sistem lain, jalankan `python server.py`.
 ## Render ulang dari catatan rekaman
 
 ```bash
-python build.py rekaman/contoh.json            # tambah --no-label untuk video tanpa label
+python build.py rekaman/contoh.json            # --no-label: tanpa label, --no-sound: tanpa suara
 npx hyperframes render --format mov --output renders/contoh.mov
 ```
 
@@ -45,6 +47,8 @@ npx hyperframes render --format mov --output renders/contoh.mov
 | --- | --- |
 | `src/template.html` | Halaman animasi: tombol, mode cutaway, perekam |
 | `src/parts.json` | Potongan 10 komponen dari foto (PNG base64) |
+| `src/sfx.json` | Efek suara yang disisipkan ke halaman web |
+| `assets/sfx/` | Efek suara untuk video; sumber dan lisensinya di `SUMBER.md` |
 | `build.py` | Catatan rekaman → komposisi video |
 | `server.py`, `Buka Atomizer.bat` | Server lokal dengan tombol Ekspor video |
 | `rekaman/` | Catatan rekaman (`.json`) |

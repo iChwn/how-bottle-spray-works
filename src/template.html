@@ -101,6 +101,7 @@ p.note{margin:0;color:var(--muted);font-size:.85rem;line-height:1.5;max-width:65
       <button id="vCut" aria-pressed="false">Cutaway<kbd>C</kbd></button>
     </div>
     <span class="sep"></span>
+    <button id="bSound" aria-pressed="true">Suara: on</button>
     <button id="bRec" class="rec-btn" aria-pressed="false"><span class="dot"></span><span id="recLbl">Rekam</span></button>
   </div>
   <div class="recbox" id="recBox" hidden>
@@ -119,6 +120,7 @@ p.note{margin:0;color:var(--muted);font-size:.85rem;line-height:1.5;max-width:65
 
 <script>
 const PARTS = __PARTS__;
+const SFX = __SFX__;
 const VB = {x:40, y:0, w:1000, h:1400};
 const META = [
   {dy:449, name:"Nozzle / aktuator", press:1},
@@ -343,6 +345,47 @@ function drawCut(alpha, prE, dPr, upOpen){
   cc.restore();
 }
 
+// ---------- sound: real CC0 recordings, triggered by what the pump does ----------
+// Same rules as sfx_events() in build.py, which places these sounds in the exported video.
+let actx=null, sfxOn=true, sfxDir=0, landed=null, snapFlip=0;
+const sfxBuf={};
+function audioInit(){
+  if (actx || window.__HF_REPLAY) return;
+  try{
+    actx=new (window.AudioContext||window.webkitAudioContext)();
+    for (const k in SFX){
+      const bin=atob(SFX[k].split(',')[1]), u8=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+      actx.decodeAudioData(u8.buffer).then(b=>{ sfxBuf[k]=b; }).catch(()=>{});
+    }
+  }catch(e){ actx=null; }
+}
+addEventListener('pointerdown', audioInit, {capture:true});
+addEventListener('keydown', audioInit, {capture:true});
+function play(name, vol){
+  if(!actx || !sfxOn || !sfxBuf[name]) return;
+  if(actx.state==='suspended') actx.resume();
+  const s=actx.createBufferSource(), g=actx.createGain();
+  s.buffer=sfxBuf[name]; g.gain.value=vol; s.connect(g); g.connect(actx.destination); s.start();
+}
+function sfxDetect(dPr, aMin){
+  const out=[];
+  const dir = dPr>0 ? 1 : dPr<0 ? -1 : 0;
+  if (dir===1 && sfxDir!==1){ out.push(['click',0.9]); if (S.primed>=0.95 && aMin>0.99) out.push(['spray',0.85]); }
+  if (dir===-1 && sfxDir!==-1) out.push(['release',0.8]);
+  sfxDir=dir;
+  const now = PARTS.map((_,i)=> S.asm*ASM_TOTAL - Math.abs(i-6)*STAG >= PART_TIME - 1e-9);
+  if (!landed) landed=now;
+  let snap=false, unsnap=false;
+  now.forEach((v,i)=>{ if(v && !landed[i]) snap=true; if(!v && landed[i]) unsnap=true; });
+  landed=now;
+  if (snap){ out.push([snapFlip ? 'snap-2' : 'snap-1', 0.75]); snapFlip^=1; }
+  if (unsnap) out.push(['snap-2', 0.4]);
+  return out;
+}
+const bSound=document.getElementById('bSound');
+bSound.onclick=()=>{ sfxOn=!sfxOn; bSound.setAttribute('aria-pressed',String(sfxOn)); bSound.textContent='Suara: '+(sfxOn?'on':'off'); };
+
 // ---------- step + render ----------
 let lastPhase='', mode='photo', upOpen=0;
 const vPhoto=$('vPhoto'), vCut=$('vCut');
@@ -403,6 +446,7 @@ function render(dt){
   drawCut(cutA, prE, dPr, upOpen);
   const zt = mode==='cut' && S.asmTarget===1 ? 1 : 0;
   if (Math.abs(CAM.z-zt)>0.001){ CAM.z += Math.sign(zt-CAM.z)*Math.min(Math.abs(zt-CAM.z), dt/0.9); applyCam(); }
+  for (const [n,v] of sfxDetect(dPr, aMin)) play(n, v);
   const spraying = aMin>0.99 && dPr>0 && S.primed>=0.95;
   if (spraying){
     emit(dt, ORIFICE.x-4, ORIFICE.y + META[0].dy + STROKE*prE, 1500);
