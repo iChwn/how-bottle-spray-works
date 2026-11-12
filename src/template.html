@@ -40,6 +40,8 @@ button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 kbd{font-family:var(--mono);font-size:.72rem;opacity:.6;margin-left:6px}
+label.chk{display:flex;align-items:center;gap:8px;font-size:.88rem;cursor:pointer;user-select:none}
+label.chk input{width:16px;height:16px;accent-color:var(--accent);margin:0}
 button.rec-btn{display:flex;align-items:center;gap:8px}
 button.rec-btn .dot{width:10px;height:10px;border-radius:50%;background:#d23b3b}
 button.rec-btn[aria-pressed="true"]{background:#d23b3b;border-color:#d23b3b;color:#fff}
@@ -102,6 +104,7 @@ p.note{margin:0;color:var(--muted);font-size:.85rem;line-height:1.5;max-width:65
     </div>
     <span class="sep"></span>
     <button id="bSound" aria-pressed="true">Suara: on</button>
+    <label class="chk" title="Centang: bola atas tetap terbuka selama ditekan, bola bawah tetap terbuka setelah dilepas. Tidak dicentang: bola hanya terbuka saat nozzle sedang bergerak."><input type="checkbox" id="optHold" checked> Bola tahan posisi<kbd>B</kbd></label>
     <button id="bRec" class="rec-btn" aria-pressed="false"><span class="dot"></span><span id="recLbl">Rekam</span></button>
   </div>
   <div class="recbox" id="recBox" hidden>
@@ -183,6 +186,7 @@ const S = {
   pr:0, prTarget:0,         // press travel 0..1, linear
   primed:0,                 // grows during each release; >=1 means liquid reached the chamber
   lift:0,                   // lower check ball lift 0..1
+  lowLatch:0,               // lower ball stays up from a release until the next press
   t:0,
 };
 const STAG = 0.09, PART_TIME = 1.4, ASM_TOTAL = 6*STAG + PART_TIME;
@@ -232,10 +236,11 @@ bRel.onclick=()=>run(doRelease);
 bSpray.onclick=()=>run(doSpray);
 bDemo.onclick=()=>{ const on=!demoOn; gen++; setDemo(on); if(on) demo(gen); };
 addEventListener('keydown',e=>{
-  if (e.target.closest && e.target.closest('button') && (e.key===' '||e.key==='Enter')) return;
+  if (e.target.closest && e.target.closest('button,input,label,textarea') && (e.key===' '||e.key==='Enter')) return;
   const k=e.key.toLowerCase();
   if (k==='a') bAsm.click(); else if (k==='e') bExp.click();
   else if (k==='t') bPress.click(); else if (k==='l') bRel.click();
+  else if (k==='b'){ optHold.checked=!optHold.checked; ballHold=optHold.checked; }
   else if (k==='c') setMode(mode==='cut'?'photo':'cut');
   else if (k===' '){ e.preventDefault(); bSpray.click(); }
 });
@@ -383,11 +388,15 @@ function sfxDetect(dPr, aMin){
   if (unsnap) out.push(['snap-2', 0.4]);
   return out;
 }
+const optHold=document.getElementById('optHold');
+optHold.onchange=()=>{ ballHold=optHold.checked; };
 const bSound=document.getElementById('bSound');
 bSound.onclick=()=>{ sfxOn=!sfxOn; bSound.setAttribute('aria-pressed',String(sfxOn)); bSound.textContent='Suara: '+(sfxOn?'on':'off'); };
 
 // ---------- step + render ----------
 let lastPhase='', mode='photo', upOpen=0;
+// ball mode: true = each ball holds its position until the next action, false = open only while the nozzle moves
+let ballHold=true;
 const vPhoto=$('vPhoto'), vCut=$('vCut');
 function setMode(m){ mode=m; vPhoto.setAttribute('aria-pressed',String(m==='photo')); vCut.setAttribute('aria-pressed',String(m==='cut'));
   if (m==='cut' && S.asmTarget===0 && !demoOn) run(doAssemble); }
@@ -415,7 +424,9 @@ function update(dt){
   else if (S.pr > S.prTarget) S.pr = Math.max(S.prTarget, S.pr - dt/UP_TIME);
   const dPr = S.pr - prevPr;
   if (dPr<0){ S.primed += -dPr; }
-  S.lift += ((dPr<0?1:0) - S.lift)*clamp(dt*14);
+  // lower ball: lifts when the release starts and stays up until the next press
+  if (dPr<0) S.lowLatch=1; else if (dPr>0 || S.asm<1) S.lowLatch=0;
+  S.lift += ((ballHold ? S.lowLatch : (dPr<0?1:0)) - S.lift)*clamp(dt*14);
   return dPr;
 }
 function render(dt){
@@ -439,7 +450,9 @@ function render(dt){
     L.firstChild.style.width = Math.max(10,(LBLX-VB.x)-right)+'px';
     L.style.opacity = 1-clamp(a*1.6);
   });
-  upOpen += (((dPr>0 && S.primed>=0.95)?1:0) - upOpen)*clamp(dt*16);
+  // upper ball: open for the whole press (also while held down), closes once the release starts
+  const upT = ballHold ? (S.prTarget===1 && aMin>0.99) : (dPr>0 && S.primed>=0.95);
+  upOpen += ((upT?1:0) - upOpen)*clamp(dt*16);
   const cutA = mode==='cut' ? aMin : 0;
   imgs.forEach((im,i)=>{ const shell=SHELL.has(i); im.style.opacity = String(shell ? 1-cutA*0.7 : 1); im.style.zIndex = String(cutA>0.01 && !shell ? 11+i : Z[i]); });
   drawLiquid(aMin);
@@ -467,19 +480,19 @@ function render(dt){
 }
 
 // ---------- recording ----------
-const snap = ()=>({asm:+S.asm.toFixed(4), asmTarget:S.asmTarget, pr:+S.pr.toFixed(4), prTarget:S.prTarget, primed:+S.primed.toFixed(4), lift:+S.lift.toFixed(4), upOpen:+upOpen.toFixed(4), mode, camz:+CAM.z.toFixed(4)});
+const snap = ()=>({asm:+S.asm.toFixed(4), asmTarget:S.asmTarget, pr:+S.pr.toFixed(4), prTarget:S.prTarget, primed:+S.primed.toFixed(4), lift:+S.lift.toFixed(4), lowLatch:S.lowLatch, upOpen:+upOpen.toFixed(4), hold:ballHold, mode, camz:+CAM.z.toFixed(4)});
 let rec=null;
 const bRec=$('bRec'), recLbl=$('recLbl');
 function recTick(dt){
   if(!rec) return;
   rec.t+=dt;
-  const now={asm:S.asmTarget, pr:S.prTarget, mode};
+  const now={asm:S.asmTarget, pr:S.prTarget, mode, hold:ballHold};
   for(const k in now) if(now[k]!==rec.last[k]){ rec.ev.push([+rec.t.toFixed(3),k,now[k]]); rec.last[k]=now[k]; }
   recLbl.textContent='Stop '+rec.t.toFixed(1)+' s';
 }
 bRec.onclick=()=>{
   if(!rec){
-    rec={t:0, start:snap(), ev:[], last:{asm:S.asmTarget, pr:S.prTarget, mode}};
+    rec={t:0, start:snap(), ev:[], last:{asm:S.asmTarget, pr:S.prTarget, mode, hold:ballHold}};
     bRec.setAttribute('aria-pressed','true'); $('recBox').hidden=true;
   } else {
     const out={v:1, dur:+rec.t.toFixed(2), start:rec.start, ev:rec.ev};
@@ -528,12 +541,13 @@ if (window.__HF_REPLAY){
   const REC=window.__HF_REC, DT=1/60;
   let simT=0, ei=0;
   const reset=()=>{ const s=REC.start;
-    Object.assign(S,{asm:s.asm, asmTarget:s.asmTarget, pr:s.pr, prTarget:s.prTarget, primed:s.primed, lift:s.lift, t:0});
+    Object.assign(S,{asm:s.asm, asmTarget:s.asmTarget, pr:s.pr, prTarget:s.prTarget, primed:s.primed, lift:s.lift, lowLatch:s.lowLatch||0, t:0});
+    ballHold = ('hold' in s) ? s.hold : false;   // recordings made before the option used the moving-only logic
     upOpen=s.upOpen; mode=s.mode; CAM.z=0; applyCam(); parts=[]; seed=12345; simT=0; ei=0; };
   window.__atomizerSeek=(T)=>{
     if (T < simT-1e-6 || simT===0){ reset(); render(0); }
     while (simT+DT <= T+1e-6){
-      while (ei<REC.ev.length && REC.ev[ei][0] <= simT+1e-6){ const [,k,v]=REC.ev[ei++]; if(k==='asm') S.asmTarget=v; else if(k==='pr') S.prTarget=v; else mode=v; }
+      while (ei<REC.ev.length && REC.ev[ei][0] <= simT+1e-6){ const [,k,v]=REC.ev[ei++]; if(k==='asm') S.asmTarget=v; else if(k==='pr') S.prTarget=v; else if(k==='hold') ballHold=v; else mode=v; }
       render(DT); simT+=DT;
     }
   };
