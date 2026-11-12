@@ -70,16 +70,16 @@ def sub(src, old, new):
 tpl = re.sub(r"\} else \{\n  let prev=performance\.now\(\);.*?requestAnimationFrame\(loop\);\n\}", "}", tpl, flags=re.S)
 tpl = re.sub(r"const waitUntil = \(cond, g\)=>new Promise\(res=>\{.*?\}\);\n", "const waitUntil = ()=>Promise.resolve(false);\n", tpl, count=1, flags=re.S)
 # thicker callouts for video: bold type with a dark halo, wider chips, heavier leader lines
-tpl = sub(tpl, """  cc.font='500 19px "IBM Plex Mono", ui-monospace, monospace'; cc.textBaseline='middle'; cc.fillStyle=INK; cc.fillText(title,x,y-13);""",
-      """  cc.font='700 25px "IBM Plex Mono", ui-monospace, monospace'; cc.textBaseline='middle';
-  cc.lineJoin='round'; cc.lineWidth=6; cc.strokeStyle='rgba(0,0,0,.7)'; cc.strokeText(title,x,y-17);
-  cc.fillStyle=INK; cc.fillText(title,x,y-17);""")
-tpl = sub(tpl, "cc.font='500 15px", "cc.font='700 19px")
-tpl = sub(tpl, "cc.roundRect(x,y+2,w,22,4) : cc.rect(x,y+2,w,22)", "cc.roundRect(x,y+2,w,30,5) : cc.rect(x,y+2,w,30)")
-tpl = sub(tpl, "cc.fillText(status,x+8,y+14)", "cc.fillText(status,x+8,y+18)")
-tpl = sub(tpl, "'rgba(255,255,255,.7)' : 'rgba(43,93,138,.55)'; cc.lineWidth=1.2;",
-      "'rgba(255,255,255,.95)' : 'rgba(43,93,138,.55)'; cc.lineWidth=3.2; cc.shadowColor='rgba(0,0,0,.6)'; cc.shadowBlur=4;")
-tpl = sub(tpl, "cc.beginPath(); cc.arc(x0,y0,3,0,6.283); cc.fill(); }", "cc.beginPath(); cc.arc(x0,y0,6,0,6.283); cc.fill(); cc.shadowBlur=0; }")
+tpl = sub(tpl, """  cc.font='500 26px "IBM Plex Mono", ui-monospace, monospace'; cc.textBaseline='middle'; cc.fillStyle=INK; cc.fillText(title,x,y-17);""",
+      """  cc.font='700 30px "IBM Plex Mono", ui-monospace, monospace'; cc.textBaseline='middle';
+  cc.lineJoin='round'; cc.lineWidth=7; cc.strokeStyle='rgba(0,0,0,.7)'; cc.strokeText(title,x,y-20);
+  cc.fillStyle=INK; cc.fillText(title,x,y-20);""")
+tpl = sub(tpl, "cc.font='500 19px", "cc.font='700 22px")
+tpl = sub(tpl, "cc.roundRect(x,y+2,w,28,4) : cc.rect(x,y+2,w,28)", "cc.roundRect(x,y+2,w,34,5) : cc.rect(x,y+2,w,34)")
+tpl = sub(tpl, "cc.fillText(status,x+8,y+17)", "cc.fillText(status,x+8,y+20)")
+tpl = sub(tpl, "'rgba(255,255,255,.7)' : 'rgba(43,93,138,.55)'; cc.lineWidth=2;",
+      "'rgba(255,255,255,.95)' : 'rgba(43,93,138,.55)'; cc.lineWidth=4; cc.shadowColor='rgba(0,0,0,.6)'; cc.shadowBlur=4;")
+tpl = sub(tpl, "cc.beginPath(); cc.arc(x0,y0,4,0,6.283); cc.fill(); }", "cc.beginPath(); cc.arc(x0,y0,7,0,6.283); cc.fill(); cc.shadowBlur=0; }")
 tpl = sub(tpl, "'rgba(255,255,255,.45)' : 'rgba(43,93,138,.35)'; lc.setLineDash([7,6]); lc.lineWidth=2;",
       "'rgba(255,255,255,.75)' : 'rgba(43,93,138,.35)'; lc.setLineDash([12,9]); lc.lineWidth=4;")
 tpl = sub(tpl, "LBLX = 680", "LBLX = 652")

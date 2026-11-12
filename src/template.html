@@ -315,20 +315,20 @@ function stepParticles(dt){
 const cutCv = document.getElementById('cut');
 cutCv.width=VB.w*dpr; cutCv.height=VB.h*dpr; cutCv.style.width=VB.w+'px'; cutCv.style.height=VB.h+'px';
 const cc = cutCv.getContext('2d'); cc.scale(dpr,dpr);
-const INK= window.__HF_REPLAY ? '#ffffff' : '#2b5d8a', CHIP_X = window.__HF_REPLAY ? 670 : 700;
+const INK= window.__HF_REPLAY ? '#ffffff' : '#2b5d8a', CHIP_X = window.__HF_REPLAY ? 640 : 680;
 const SHELL = new Set([0,3,6,8,9]);           // nozzle, cap, cylinder, valve seat, dip tube
 const Z = [9,8,7,10,5,4,6,3,7,2];
 function chip(x,y,title,status,on){
-  cc.font='500 19px "IBM Plex Mono", ui-monospace, monospace'; cc.textBaseline='middle'; cc.fillStyle=INK; cc.fillText(title,x,y-13);
+  cc.font='500 26px "IBM Plex Mono", ui-monospace, monospace'; cc.textBaseline='middle'; cc.fillStyle=INK; cc.fillText(title,x,y-17);
   if(!status) return;
-  cc.font='500 15px "IBM Plex Mono", ui-monospace, monospace';
+  cc.font='500 19px "IBM Plex Mono", ui-monospace, monospace';
   const w=cc.measureText(status).width+16;
   cc.fillStyle= on===1 ? '#1d8a4e' : on===2 ? '#c46a12' : '#6b7884';
-  cc.beginPath(); cc.roundRect ? cc.roundRect(x,y+2,w,22,4) : cc.rect(x,y+2,w,22); cc.fill();
-  cc.fillStyle='#fff'; cc.fillText(status,x+8,y+14);
+  cc.beginPath(); cc.roundRect ? cc.roundRect(x,y+2,w,28,4) : cc.rect(x,y+2,w,28); cc.fill();
+  cc.fillStyle='#fff'; cc.fillText(status,x+8,y+17);
 }
-function leader(x0,y0,x1,y1){ cc.strokeStyle= window.__HF_REPLAY ? 'rgba(255,255,255,.7)' : 'rgba(43,93,138,.55)'; cc.lineWidth=1.2; cc.beginPath(); cc.moveTo(x0,y0); cc.lineTo(x1,y1); cc.stroke();
-  cc.fillStyle=INK; cc.beginPath(); cc.arc(x0,y0,3,0,6.283); cc.fill(); }
+function leader(x0,y0,x1,y1){ cc.strokeStyle= window.__HF_REPLAY ? 'rgba(255,255,255,.7)' : 'rgba(43,93,138,.55)'; cc.lineWidth=2; cc.beginPath(); cc.moveTo(x0,y0); cc.lineTo(x1,y1); cc.stroke();
+  cc.fillStyle=INK; cc.beginPath(); cc.arc(x0,y0,4,0,6.283); cc.fill(); }
 // centre of a part in stage px at its assembled position
 function at(i, extraY=0){ const p=PARTS[i]; return [p.x+p.w-VB.x, p.y+p.h/2+META[i].dy+extraY-VB.y]; }
 function drawCut(alpha, prE, dPr, upOpen){
@@ -444,8 +444,6 @@ function render(dt){
   imgs.forEach((im,i)=>{ const shell=SHELL.has(i); im.style.opacity = String(shell ? 1-cutA*0.7 : 1); im.style.zIndex = String(cutA>0.01 && !shell ? 11+i : Z[i]); });
   drawLiquid(aMin);
   drawCut(cutA, prE, dPr, upOpen);
-  const zt = mode==='cut' && S.asmTarget===1 ? 1 : 0;
-  if (Math.abs(CAM.z-zt)>0.001){ CAM.z += Math.sign(zt-CAM.z)*Math.min(Math.abs(zt-CAM.z), dt/0.9); applyCam(); }
   for (const [n,v] of sfxDetect(dPr, aMin)) play(n, v);
   const spraying = aMin>0.99 && dPr>0 && S.primed>=0.95;
   if (spraying){
@@ -531,7 +529,7 @@ if (window.__HF_REPLAY){
   let simT=0, ei=0;
   const reset=()=>{ const s=REC.start;
     Object.assign(S,{asm:s.asm, asmTarget:s.asmTarget, pr:s.pr, prTarget:s.prTarget, primed:s.primed, lift:s.lift, t:0});
-    upOpen=s.upOpen; mode=s.mode; CAM.z=s.camz; applyCam(); parts=[]; seed=12345; simT=0; ei=0; };
+    upOpen=s.upOpen; mode=s.mode; CAM.z=0; applyCam(); parts=[]; seed=12345; simT=0; ei=0; };
   window.__atomizerSeek=(T)=>{
     if (T < simT-1e-6 || simT===0){ reset(); render(0); }
     while (simT+DT <= T+1e-6){
