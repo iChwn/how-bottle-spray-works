@@ -115,7 +115,7 @@ header,.rail,.recbox,.explain,p.note{display:none!important}
 .lbl i{background:#fff!important;height:4px!important;opacity:1!important;border-radius:2px;box-shadow:0 0 4px rgba(0,0,0,.7)}
 .lbl b{opacity:.85!important;font-weight:700!important}
 :root{--display:"Inter",sans-serif;--body:"Inter",sans-serif;--mono:"IBM Plex Mono",monospace}
-""" + ("" if show_labels else "#cut,.lbl{display:none!important}\n")
+""" + ("" if show_labels else "#cut,.lbl,.cap{display:none!important}\n")
 
 html = f"""<!doctype html>
 <html lang="id" data-resolution="portrait">

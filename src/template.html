@@ -23,6 +23,7 @@ h1{font-family:var(--display);font-size:1.45rem;margin:0;text-wrap:balance;lette
 #fx{z-index:20;pointer-events:none}
 #liq{z-index:15;pointer-events:none;mix-blend-mode:multiply}
 #cut{z-index:16;pointer-events:none}
+.cap{position:absolute;left:90px;top:80px;width:820px;box-sizing:border-box;padding:18px 24px;border-radius:10px;background:rgba(12,18,26,.84);color:#fff;font-family:var(--body);font-size:29px;line-height:1.38;z-index:40;opacity:0;pointer-events:none}
 .seg{display:flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .seg button{border:0;border-radius:0}
 .explain{margin:0;font-size:.95rem;line-height:1.55;max-width:65ch;min-height:3.1em}
@@ -76,6 +77,8 @@ p.note{margin:0;color:var(--muted);font-size:.85rem;line-height:1.5;max-width:65
       <canvas id="liq"></canvas>
       <canvas id="cut"></canvas>
       <canvas id="fx"></canvas>
+      <div class="cap" id="cap">Pas dipencet, piston ngedorong cairan di ruang pompa. Bola bawah posisinya nutup, bola atas posisinya kebuka, ngedorong cairannya keluar lewat lubang nozzle yang kecil banget jadi butiran kabut.</div>
+      <div class="cap" id="capRel">Pas dilepas, pegas ngedorong piston naik. Bola atas nutup, bola bawah kebuka, cairan dari botol kesedot naik lewat pipa ke ruang pompa.</div>
     </div>
     <div class="busy" id="busy" hidden role="status" aria-live="polite">
       <div class="spin"></div>
@@ -155,6 +158,7 @@ const labels = PARTS.map((p,i)=>{
 const liq = document.getElementById('liq'), fx = document.getElementById('fx');
 const dpr = Math.min(2, window.devicePixelRatio||1);
 [liq,fx].forEach(c=>{c.width=VB.w*dpr;c.height=VB.h*dpr;c.style.width=VB.w+'px';c.style.height=VB.h+'px';});
+const capEl = document.getElementById('cap'), capRelEl = document.getElementById('capRel');
 const lc = liq.getContext('2d'), fc = fx.getContext('2d');
 const CH = document.createElement('canvas'); CH.width=VB.w*dpr; CH.height=VB.h*dpr;
 lc.scale(dpr,dpr); fc.scale(dpr,dpr);
@@ -247,7 +251,7 @@ addEventListener('keydown',e=>{
 
 // ---------- liquid ----------
 const BOTTLE = {x0:440,x1:676,neck0:505,neck1:610,top:640,shoulder:740,bottom:1262,level:1150};
-function drawLiquid(a){
+function drawLiquid(a, prE=0, flowA=0, inA=0){
   lc.clearRect(0,0,VB.w,VB.h);
   if (a<=0.01) return;
   lc.save(); lc.translate(-VB.x,-VB.y); lc.globalAlpha = a;
@@ -272,11 +276,13 @@ function drawLiquid(a){
   const yTube = lvl - (lvl-tubeTop)*clamp(n/0.7);
   lc.fillStyle='rgba(64,150,230,.55)';
   lc.fillRect(552, yTube, 11, tubeBot-yTube);
-  const chamberFill = clamp((n-0.6)/1.4);
+  const chamberFill = clamp((n-0.25)/0.75);   // full after the first (priming) release
   if (chamberFill>0){
     lc.fillRect(549, 826, 17, 46);
     // chamber liquid takes the cylinder's own silhouette (from the photo layer), inset to sit inside the wall
-    const cTop=668, cBot=832, cy = cBot-(cBot-cTop)*chamberFill;
+    const cTop=668, cBot=832;
+    // the surface rides on the piston, so a press visibly pushes into the liquid
+    const cy = Math.max(cBot-(cBot-cTop)*chamberFill, cTop + STROKE*prE);
     const B6=PARTS[6], k=CH.getContext('2d');
     k.setTransform(dpr,0,0,dpr,0,0); k.clearRect(0,0,VB.w,VB.h); k.translate(-VB.x,-VB.y);
     k.globalCompositeOperation='source-over'; k.fillStyle='rgba(64,150,230,.34)';
@@ -284,6 +290,23 @@ function drawLiquid(a){
     k.globalCompositeOperation='destination-in';
     k.drawImage(imgs[6], B6.x+8, B6.y+6, B6.w-16, B6.h-10);
     lc.drawImage(CH, VB.x, VB.y, VB.w, VB.h);
+  }
+  // sucked liquid: from the bottle up the dip tube, past the open lower ball, into the chamber
+  if (inA>0.01){
+    lc.save(); lc.globalAlpha*=inA; lc.lineCap='round';
+    lc.beginPath(); lc.moveTo(557,1228); lc.lineTo(557,700+STROKE*prE);
+    lc.strokeStyle='rgba(40,128,230,.85)'; lc.lineWidth=9; lc.setLineDash([]); lc.stroke();
+    lc.strokeStyle='rgba(210,235,255,.95)'; lc.lineWidth=4; lc.setLineDash([10,16]); lc.lineDashOffset=-S.t*140; lc.stroke();
+    lc.restore();
+  }
+  // pushed liquid: from the chamber up the hollow piston, past the open upper ball, out of the nozzle hole
+  if (flowA>0.01){
+    const s=STROKE*prE, path=[[556,720+s],[556,506+s],[497,497+s]];
+    lc.save(); lc.globalAlpha*=flowA; lc.lineCap='round'; lc.lineJoin='round';
+    lc.beginPath(); path.forEach(([x,y],i)=> i?lc.lineTo(x,y):lc.moveTo(x,y));
+    lc.strokeStyle='rgba(40,128,230,.85)'; lc.lineWidth=9; lc.setLineDash([]); lc.stroke();
+    lc.strokeStyle='rgba(210,235,255,.95)'; lc.lineWidth=4; lc.setLineDash([10,16]); lc.lineDashOffset=-S.t*140; lc.stroke();
+    lc.restore();
   }
   lc.restore();
 }
@@ -396,7 +419,7 @@ bSound.onclick=()=>{ sfxOn=!sfxOn; bSound.setAttribute('aria-pressed',String(sfx
 // ---------- step + render ----------
 let lastPhase='', mode='photo', upOpen=0;
 // ball mode: true = each ball holds its position until the next action, false = open only while the nozzle moves
-let ballHold=true;
+let ballHold=true, flowA=0, inA=0, capA=0, capRA=0;
 const vPhoto=$('vPhoto'), vCut=$('vCut');
 function setMode(m){ mode=m; vPhoto.setAttribute('aria-pressed',String(m==='photo')); vCut.setAttribute('aria-pressed',String(m==='cut'));
   if (m==='cut' && S.asmTarget===0 && !demoOn) run(doAssemble); }
@@ -455,7 +478,19 @@ function render(dt){
   upOpen += ((upT?1:0) - upOpen)*clamp(dt*16);
   const cutA = mode==='cut' ? aMin : 0;
   imgs.forEach((im,i)=>{ const shell=SHELL.has(i); im.style.opacity = String(shell ? 1-cutA*0.7 : 1); im.style.zIndex = String(cutA>0.01 && !shell ? 11+i : Z[i]); });
-  drawLiquid(aMin);
+  flowA += (((dPr>0 && S.primed>=0.95 && aMin>0.99)?1:0) - flowA)*clamp(dt*(dPr>0?24:3.5));
+  inA += (((dPr<0 && aMin>0.99)?1:0) - inA)*clamp(dt*(dPr<0?24:3.5));
+  drawLiquid(aMin, prE, flowA, inA);
+  // explanation caption while the nozzle is held down on a filled pump
+  // captions follow what the balls show: held positions in hold mode, only the moving stroke otherwise
+  const pressOn = aMin>0.99 && S.primed>=0.95 && (ballHold ? S.prTarget===1 : dPr>0);
+  const relOn = aMin>0.99 && (ballHold ? (S.prTarget===0 && S.lowLatch===1) : dPr<0);
+  // one caption at a time: the outgoing one fades out quickly before the next fades in
+  const pT = pressOn && capRA<=0 ? 1 : 0, rT = relOn && capA<=0 ? 1 : 0;
+  const ramp = (v,tg)=> tg>v ? Math.min(tg, v+dt/0.4) : Math.max(tg, v-dt/0.2);   // linear: 0.4 s in, 0.2 s out
+  capA = ramp(capA, pT); capRA = ramp(capRA, rT);
+  capEl.style.opacity = capA.toFixed(3);
+  capRelEl.style.opacity = capRA.toFixed(3);
   drawCut(cutA, prE, dPr, upOpen);
   for (const [n,v] of sfxDetect(dPr, aMin)) play(n, v);
   const spraying = aMin>0.99 && dPr>0 && S.primed>=0.95;
